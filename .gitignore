@@ -1,0 +1,26 @@
+# 配置文件 - 包含敏感信息，不应提交到版本控制
+config.json
+folder-alias.json
+private-folder-alias.json
+
+# 日志文件
+*.log
+*.txt
+
+# Python 缓存文件
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE 文件
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+.gitignore
