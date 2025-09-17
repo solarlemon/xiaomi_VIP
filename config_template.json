@@ -1,0 +1,19 @@
+{
+    "accounts": [
+        {
+            "name": "账号1描述",
+            "passToken": "请填入您的passToken",
+            "userId": "请填入您的userId"
+        },
+        {
+            "name": "账号2描述",
+            "passToken": "请填入您的passToken",
+            "userId": "请填入您的userId"
+        }
+    ],
+    "settings": {
+        "max_delay_seconds": 600,
+        "execution_time_start": 8,
+        "execution_time_end": 9
+    }
+}
