@@ -372,20 +372,78 @@ def random_delay(max_delay_seconds=600):
 def get_xiaomi_cookies(pass_token, user_id):
     session = requests.Session()
     login_url = 'https://account.xiaomi.com/pass/serviceLogin?callback=https%3A%2F%2Fapi.jr.airstarfinance.net%2Fsts%3Fsign%3D1dbHuyAmee0NAZ2xsRw5vhdVQQ8%253D%26followup%3Dhttps%253A%252F%252Fm.jr.airstarfinance.net%252Fmp%252Fapi%252Flogin%253Ffrom%253Dmipay_indexicon_TVcard%2526deepLinkEnable%253Dfalse%2526requestUrl%253Dhttps%25253A%25252F%25252Fm.jr.airstarfinance.net%25252Fmp%25252Factivity%25252FvideoActivity%25253Ffrom%25253Dmipay_indexicon_TVcard%252526_noDarkMode%25253Dtrue%252526_transparentNaviBar%25253Dtrue%252526cUserId%25253Dusyxgr5xjumiQLUoAKTOgvi858Q%252526_statusBarHeight%25253D137&sid=jrairstar&_group=DEFAULT&_snsNone=true&_loginType=ticket'
+    
+    # 随机化User-Agent列表
+    user_agents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0'
+    ]
+    
+    # 为每个账号随机选择User-Agent
+    user_agent = random.choice(user_agents)
+    
+    # 完整的浏览器Headers
     headers = {
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0',
+        'user-agent': user_agent,
         'cookie': f'passToken={pass_token}; userId={user_id};'
     }
 
-    try:
-        session.get(url=login_url, headers=headers, verify=False)
-        cookies = session.cookies.get_dict()
-        if not cookies.get('cUserId'):
-            return None
-        return f"cUserId={cookies.get('cUserId')};jrairstar_serviceToken={cookies.get('serviceToken')}"
-    except Exception as e:
-        logger.log(f"获取Cookie失败: {e}", level='error')
-        return None
+    # 重试机制：最多重试3次，使用指数退避
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            logger.log(f"🔄 {account_name} 正在尝试获取Cookie (第{attempt+1}次)")
+            response = session.get(url=login_url, headers=headers, verify=False, timeout=30)
+            # 记录响应状态
+            logger.log(f"📡 {account_name} 响应状态码: {response.status_code}")
+            if response.status_code != 200:
+                logger.log(f"❌ {account_name} HTTP状态码异常: {response.status_code}", level='error')
+                if attempt < max_retries - 1:
+                    delay = (2 ** attempt) + random.uniform(1, 3)  # 指数退避 + 随机抖动
+                    logger.log(f"⏰ {account_name} 等待 {delay:.1f} 秒后重试...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    return None
+            
+            cookies = session.cookies.get_dict()
+            logger.log(f"🍪 {account_name} 获取到的Cookie数量: {len(cookies)}")
+            
+            # 检查关键Cookie
+            if not cookies.get('cUserId'):
+                logger.log(f"❌ {account_name} 缺少关键Cookie: cUserId", level='error')
+                if attempt < max_retries - 1:
+                    delay = (2 ** attempt) + random.uniform(1, 3)
+                    logger.log(f"⏰ {account_name} 等待 {delay:.1f} 秒后重试...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    return None
+            
+            result_cookie = f"cUserId={cookies.get('cUserId')};jrairstar_serviceToken={cookies.get('serviceToken')}"
+            logger.log(f"✅ {account_name} Cookie获取成功")
+            return result_cookie
+            
+        except requests.exceptions.Timeout:
+            logger.log(f"⏰ {account_name} 请求超时", level='error')
+        except requests.exceptions.ConnectionError as e:
+            logger.log(f"🌐 {account_name} 连接错误: {str(e)}", level='error')
+        except requests.exceptions.RequestException as e:
+            logger.log(f"📡 {account_name} 请求异常: {str(e)}", level='error')
+        except Exception as e:
+            logger.log(f"💥 {account_name} 未知异常: {str(e)}", level='error')
+        
+        # 如果不是最后一次尝试，等待后重试
+        if attempt < max_retries - 1:
+            delay = (2 ** attempt) + random.uniform(1, 3)  # 指数退避策略
+            logger.log(f"⏰ {account_name} 等待 {delay:.1f} 秒后重试...")
+            time.sleep(delay)
+    
+    logger.log(f"❌ {account_name} Cookie获取失败，已达到最大重试次数", level='error')
+    return None
 
 def get_execution_count():
     """从文件中读取执行次数，如果文件不存在则返回0"""
@@ -478,13 +536,20 @@ if __name__ == "__main__":
     logger.log(">>>>>>>>>> 脚本开始执行 <<<<<<<<<<")
 
     cookie_list = []
-    for account in accounts:
+    for i, account in enumerate(accounts):
         if not account.get('passToken') or account.get('passToken') == 'xxxxx':
             logger.log(f"⚠️ 检测到账号 {account.get('name', account.get('userId', '未知'))} 配置为空，跳过此账号。")
             continue
 
         account_name = account.get('name', account.get('userId', '未知账号'))
         logger.log(f"\n>>>>>>>>>> 正在处理 {account_name} <<<<<<<<<<")
+        
+        # 在账号间添加延迟，避免并发请求
+        if i > 0:  # 第一个账号不需要延迟
+            delay = random.uniform(3, 8)  # 3-8秒随机延迟
+            logger.log(f"⏰ 账号间延迟 {delay:.1f} 秒...")
+            time.sleep(delay)
+        
         new_cookie = get_xiaomi_cookies(account['passToken'], account['userId'])
         if new_cookie:
             cookie_list.append(new_cookie)
