@@ -119,7 +119,6 @@ class RNL:
             for task in response['value']['taskInfoList']:
                 if '浏览组浏览任务' in task['taskName']:
                     target_tasks.append(task)
-            logger.log("获取任务列表成功。")
             return target_tasks
         except Exception as e:
             logger.log(f'获取任务列表异常：{e}', level='error')
@@ -153,7 +152,6 @@ class RNL:
             if response and response['code'] != 0:
                 logger.log(f'完成任务失败：{response}', level='error')
                 return None
-            logger.log("完成任务成功。")
             return response['value']
         except Exception as e:
             logger.log(f'完成任务异常：{e}', level='error')
@@ -264,7 +262,6 @@ class RNL:
 
         # 记录
         self.queryUserJoinListAndQueryUserGoldRichSum()
-        logger.log("所有任务执行完毕。")
         return True
 
 class Logger:
