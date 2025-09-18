@@ -91,8 +91,9 @@ class RnlRequest:
 
 
 class RNL:
-    def __init__(self, c):
+    def __init__(self, c, account_name="未知账号"):
         self.t_id = None
+        self.account_name = account_name
         self.options = {
             "task_list": True,
             "complete_task": True,
@@ -112,12 +113,12 @@ class RNL:
                 'https://m.jr.airstarfinance.net/mp/api/generalActivity/getTaskList',
                 data=data,
             )
-            if response and response['code'] != 0:
+            if not response or response.get('code') != 0:
                 logger.log(f"获取任务列表失败: {response}", level='error')
                 return None
             target_tasks = []
-            for task in response['value']['taskInfoList']:
-                if '浏览组浏览任务' in task['taskName']:
+            for task in response.get('value', {}).get('taskInfoList', []):
+                if '浏览组浏览任务' in task.get('taskName', ''):
                     target_tasks.append(task)
             return target_tasks
         except Exception as e:
@@ -135,11 +136,11 @@ class RNL:
                 'https://m.jr.airstarfinance.net/mp/api/generalActivity/getTask',
                 data=data,
             )
-            if response and response['code'] != 0:
+            if not response or response.get('code') != 0:
                 logger.log(f'获取任务信息失败：{response}', level='error')
                 return None
             logger.log("获取任务信息成功。")
-            return response['value']['taskInfo']['userTaskId']
+            return response.get('value', {}).get('taskInfo', {}).get('userTaskId')
         except Exception as e:
             logger.log(f'获取任务信息异常：{e}', level='error')
             return None
@@ -149,10 +150,10 @@ class RNL:
             response = self.rr.get(
                 f'https://m.jr.airstarfinance.net/mp/api/generalActivity/completeTask?activityCode={self.activity_code}&app=com.mipay.wallet&isNfcPhone=true&channel=mipay_indexicon_TVcard&deviceType=2&system=1&visitEnvironment=2&userExtra=%7B%22platformType%22:1,%22com.miui.player%22:%224.27.0.4%22,%22com.miui.video%22:%22v2024090290(MiVideo-UN)%22,%22com.mipay.wallet%22:%226.83.0.5175.2256%22%7D&taskId={task_id}&browsTaskId={t_id}&browsClickUrlId={brows_click_urlId}&clickEntryType=undefined&festivalStatus=0',
             )
-            if response and response['code'] != 0:
+            if not response or response.get('code') != 0:
                 logger.log(f'完成任务失败：{response}', level='error')
                 return None
-            return response['value']
+            return response.get('value')
         except Exception as e:
             logger.log(f'完成任务异常：{e}', level='error')
             return None
@@ -171,12 +172,12 @@ class RNL:
             logger.log(f'领取奖励异常：{e}', level='error')
             return False
 
-    def queryUserJoinListAndQueryUserGoldRichSum(self):
+    def queryUserJoinListAndQueryUserGoldRichSum(self, collect_summary=False):
         try:
             total_res = self.rr.get('https://m.jr.airstarfinance.net/mp/api/generalActivity/queryUserGoldRichSum?app=com.mipay.wallet&deviceType=2&system=1&visitEnvironment=2&userExtra={"platformType":1,"com.miui.player":"4.27.0.4","com.miui.video":"v2024090290(MiVideo-UN)","com.mipay.wallet":"6.83.0.5175.2256"}&activityCode=2211-videoWelfare')
             if not total_res or total_res['code'] != 0:
                 logger.log(f'获取兑换视频天数失败：{total_res}', level='error')
-                return False
+                return False if not collect_summary else (False, None)
             total = f"{int(total_res['value']) / 100:.2f}天" if total_res else "未知"
 
             response = self.rr.get(
@@ -184,7 +185,7 @@ class RNL:
             )
             if not response or response['code'] != 0:
                 logger.log(f'查询任务完成记录失败：{response}', level='error')
-                return False
+                return False if not collect_summary else (False, None)
 
             history_list = response['value']['data']
             current_date = datetime.now().strftime("%Y-%m-%d")
@@ -192,29 +193,35 @@ class RNL:
             logger.log(f"------------ {current_date} 当天任务记录 ------------")
 
             found_today_record = False
+            today_total_days = 0.0
             for a in history_list:
                 record_time = a['createTime']
                 record_date = record_time[:10]
                 if record_date == current_date:
                     days = int(a['value']) / 100
                     hours = days * 24
+                    today_total_days += days
                     logger.log(f"{record_time} 领到视频会员，+{days:.2f}天（{hours:.1f}小时）")
                     found_today_record = True
             
             if not found_today_record:
                 logger.log("今天暂无新的任务完成记录。")
 
+            # 如果需要收集汇总信息，返回今日领取的时长
+            if collect_summary:
+                return True, today_total_days
+            
             return True
         except Exception as e:
             logger.log(f'获取任务记录异常：{e}', level='error')
-            return False
+            return False if not collect_summary else (False, None)
 
     def main(self):
         logger.log("开始执行任务...")
         
         # 检查是否成功获取任务记录，这也可以作为账号是否有效的初步判断
         if not self.queryUserJoinListAndQueryUserGoldRichSum():
-            return False
+            return False, 0.0
 
         for i in range(2):
             logger.log(f"--- 正在执行第 {i+1} 个任务循环 ---")
@@ -222,7 +229,7 @@ class RNL:
             # 获取任务列表
             tasks = self.get_task_list()
             if not tasks:
-                return False
+                return False, 0.0
             task = tasks[0]
             
             try:
@@ -248,21 +255,24 @@ class RNL:
                 logger.log("尝试重新获取任务数据以领取奖励...")
                 user_task_id = self.get_task(task_code=task_code)
                 if not user_task_id:
-                    return False
+                    return False, 0.0
             
             logger.log("等待2秒...")
             time.sleep(2)
             
             # 领取奖励
             if not self.receive_award(user_task_id=user_task_id):
-                return False
+                return False, 0.0
 
             logger.log("等待2秒...")
             time.sleep(2)
 
-        # 记录
-        self.queryUserJoinListAndQueryUserGoldRichSum()
-        return True
+        # 获取今日领取记录用于汇总
+        success, today_days = self.queryUserJoinListAndQueryUserGoldRichSum(collect_summary=True)
+        if success:
+            return True, today_days if today_days else 0.0
+        else:
+            return False, 0.0
 
 class Logger:
     def __init__(self, log_file='xiaomi_wallet_log.txt', max_size_mb=2, backup_count=3):
@@ -495,6 +505,63 @@ def load_config(config_file='config.json'):
         logger.log(f"读取配置文件失败: {e}", level='error')
         return None
 
+def print_summary_table(account_results):
+    """打印账号汇总表格"""
+    if not account_results:
+        logger.log("\n🔍 没有账号执行成功，无法生成汇总表格")
+        return
+    
+    logger.log("\n" + "=" * 80)
+    logger.log("📊 账号执行汇总表格")
+    logger.log("=" * 80)
+    
+    # 计算最大列宽以对齐表格
+    max_name_len = max(len(result['name']) for result in account_results)
+    max_name_len = max(max_name_len, 8)  # 最小列宽
+    
+    # 打印表头
+    header = f"| {'账号名称':<{max_name_len}} | {'执行状态':<10} | {'今日领取天数':<12} | {'今日领取小时':<12} |"
+    separator = "+" + "-" * (max_name_len + 2) + "+" + "-" * 12 + "+" + "-" * 14 + "+" + "-" * 14 + "+"
+    
+    logger.log(separator)
+    logger.log(header)
+    logger.log(separator)
+    
+    # 打印每个账号的数据
+    total_days = 0.0
+    successful_accounts = 0
+    failed_accounts = 0
+    
+    for result in account_results:
+        name = result['name']
+        success = result['success']
+        days = result['days']
+        hours = days * 24
+        
+        status = "✅ 成功" if success else "❌ 失败"
+        if success:
+            successful_accounts += 1
+            total_days += days
+        else:
+            failed_accounts += 1
+        
+        days_str = f"{days:.2f}" if success else "0.00"
+        hours_str = f"{hours:.1f}" if success else "0.0"
+        
+        row = f"| {name:<{max_name_len}} | {status:<10} | {days_str:<12} | {hours_str:<12} |"
+        logger.log(row)
+    
+    logger.log(separator)
+    
+    # 打印汇总统计
+    total_hours = total_days * 24
+    logger.log(f"📈 汇总统计:")
+    logger.log(f"   • 成功账号: {successful_accounts} 个")
+    logger.log(f"   • 失败账号: {failed_accounts} 个")
+    # logger.log(f"   • 总计领取: {total_days:.2f} 天 ({total_hours:.1f} 小时)")
+    # logger.log(f"   • 平均每成功账号: {total_days/successful_accounts:.2f} 天" if successful_accounts > 0 else "   • 平均每成功账号: 0.00 天")
+    logger.log("=" * 80)
+
 
 if __name__ == "__main__":
     logger = Logger()
@@ -556,16 +623,42 @@ if __name__ == "__main__":
 
     logger.log(f"\n>>>>>>>>>> 共获取到{len(cookie_list)}个有效Cookie <<<<<<<<<<")
 
+    # 用于收集账号执行结果的列表
+    account_results = []
+    
     for index, c in enumerate(cookie_list):
         logger.log(f"\n--------- 开始执行第{index+1}个账号 ---------")
+        
+        # 获取账号名称（从配置中找到对应的账号）
+        account_name = f"账号{index+1}"
+        for account in accounts:
+            if account.get('passToken') and account.get('passToken') != 'xxxxx':
+                if accounts.index(account) == index:
+                    account_name = account.get('name', account.get('userId', f"账号{index+1}"))
+                    break
+        
         try:
-            success = RNL(c).main()
+            success, today_days = RNL(c, account_name).main()
+            account_results.append({
+                'name': account_name,
+                'success': success,
+                'days': today_days
+            })
+            
             if success:
                 logger.log(f"✅ 第{index+1}个账号任务执行成功！")
             else:
                 logger.log(f"❌ 第{index+1}个账号任务执行失败。", level='error')
         except Exception as e:
             logger.log(f"⚠️ 第{index+1}个账号执行异常: {str(e)}", level='error')
+            account_results.append({
+                'name': account_name,
+                'success': False,
+                'days': 0.0
+            })
         logger.log(f"--------- 第{index+1}个账号执行结束 ---------")
 
+    # 显示汇总表格
+    print_summary_table(account_results)
+    
     logger.log("\n>>>>>>>>>> 脚本执行完毕 <<<<<<<<<<")
