@@ -517,11 +517,17 @@ def print_summary_table(account_results):
     
     # 计算最大列宽以对齐表格
     max_name_len = max(len(result['name']) for result in account_results)
-    max_name_len = max(max_name_len, 8)  # 最小列宽
+    max_name_len = max(max_name_len, 10)  # 最小列宽设为10，适配中文"账号名称"
+    
+    # 定义各列的宽度
+    name_width = max_name_len
+    status_width = 12  # "执行状态" + 状态内容
+    days_width = 14    # "今日领取天数" + 数值
+    hours_width = 14   # "今日领取小时" + 数值
     
     # 打印表头
-    header = f"| {'账号名称':<{max_name_len}} | {'执行状态':<10} | {'今日领取天数':<12} | {'今日领取小时':<12} |"
-    separator = "+" + "-" * (max_name_len + 2) + "+" + "-" * 12 + "+" + "-" * 14 + "+" + "-" * 14 + "+"
+    header = f"| {'账号名称':<{name_width}} | {'执行状态':<{status_width}} | {'今日领取天数':<{days_width}} | {'今日领取小时':<{hours_width}} |"
+    separator = "+" + "-" * (name_width + 2) + "+" + "-" * (status_width + 2) + "+" + "-" * (days_width + 2) + "+" + "-" * (hours_width + 2) + "+"
     
     logger.log(separator)
     logger.log(header)
@@ -548,7 +554,7 @@ def print_summary_table(account_results):
         days_str = f"{days:.2f}" if success else "0.00"
         hours_str = f"{hours:.1f}" if success else "0.0"
         
-        row = f"| {name:<{max_name_len}} | {status:<10} | {days_str:<12} | {hours_str:<12} |"
+        row = f"| {name:<{name_width}} | {status:<{status_width}} | {days_str:<{days_width}} | {hours_str:<{hours_width}} |"
         logger.log(row)
     
     logger.log(separator)
