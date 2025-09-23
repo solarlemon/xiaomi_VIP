@@ -365,16 +365,8 @@ def random_delay(max_delay_seconds=600):
         max_delay_seconds (int): 最大延迟秒数，默认600秒（10分钟）
     """
     delay_seconds = random.randint(0, max_delay_seconds)
-    delay_minutes = delay_seconds // 60
-    delay_seconds_remainder = delay_seconds % 60
-    
-    if delay_minutes > 0:
-        logger.log(f"随机延迟 {delay_minutes} 分 {delay_seconds_remainder} 秒后开始执行...")
-    else:
-        logger.log(f"随机延迟 {delay_seconds} 秒后开始执行...")
     
     time.sleep(delay_seconds)
-    logger.log("延迟结束，开始执行任务")
 
 def get_xiaomi_cookies(pass_token, user_id):
     session = requests.Session()
@@ -417,7 +409,7 @@ def get_xiaomi_cookies(pass_token, user_id):
                     return None
             
             cookies = session.cookies.get_dict()
-            logger.log(f"🍪 {account_name} 获取到的Cookie数量: {len(cookies)}")
+            # logger.log(f"🍪 {account_name} 获取到的Cookie数量: {len(cookies)}")
             
             # 检查关键Cookie
             if not cookies.get('cUserId'):
@@ -431,7 +423,6 @@ def get_xiaomi_cookies(pass_token, user_id):
                     return None
             
             result_cookie = f"cUserId={cookies.get('cUserId')};jrairstar_serviceToken={cookies.get('serviceToken')}"
-            logger.log(f"✅ {account_name} Cookie获取成功")
             return result_cookie
             
         except requests.exceptions.Timeout:
@@ -495,7 +486,7 @@ def load_config(config_file='config.json'):
                 'execution_time_end': 9
             }
         
-        logger.log(f"成功加载配置文件，共找到 {len(config['accounts'])} 个账号")
+        # logger.log(f"成功加载配置文件，共找到 {len(config['accounts'])} 个账号")
         return config
         
     except json.JSONDecodeError as e:
@@ -586,7 +577,6 @@ if __name__ == "__main__":
         settings['execution_time_start'], 
         settings['execution_time_end']
     )
-    logger.log(f"当前北京时间：{current_time.strftime('%Y-%m-%d %H:%M:%S')}")
     
     if not is_target_time:
         logger.log("正在测试")
@@ -594,7 +584,6 @@ if __name__ == "__main__":
         time.sleep(5)
         exit(0)
     else:
-        logger.log(f"当前时间在{settings['execution_time_start']}:00-{settings['execution_time_end']}:00范围内，准备执行任务")
         # 随机延迟
         random_delay(settings.get('max_delay_seconds', 600))
     
@@ -617,13 +606,11 @@ if __name__ == "__main__":
         # 在账号间添加延迟，避免并发请求
         if i > 0:  # 第一个账号不需要延迟
             delay = random.uniform(3, 8)  # 3-8秒随机延迟
-            logger.log(f"⏰ 账号间延迟 {delay:.1f} 秒...")
             time.sleep(delay)
         
         new_cookie = get_xiaomi_cookies(account['passToken'], account['userId'])
         if new_cookie:
             cookie_list.append(new_cookie)
-            logger.log(f"✅ {account_name} Cookie获取成功")
         else:
             logger.log(f"❌ {account_name} Cookie获取失败，请检查配置")
 
@@ -667,4 +654,4 @@ if __name__ == "__main__":
     # 显示汇总表格
     print_summary_table(account_results)
     
-    logger.log("\n>>>>>>>>>> 脚本执行完毕 <<<<<<<<<<")
+    logger.log("\n>>>>>>>>>> 脚本执行完毕 <<<<<<<<<<\n")
