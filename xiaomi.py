@@ -217,8 +217,6 @@ class RNL:
             return False if not collect_summary else (False, None)
 
     def main(self):
-        logger.log("开始执行任务...")
-        
         # 检查是否成功获取任务记录，这也可以作为账号是否有效的初步判断
         if not self.queryUserJoinListAndQueryUserGoldRichSum():
             return False, 0.0
@@ -241,7 +239,7 @@ class RNL:
             task_code = task['taskCode']
             brows_click_url_id = task['generalActivityUrlInfo']['browsClickUrlId']
             
-            logger.log("等待13秒以完成任务浏览...")
+            # logger.log("等待13秒以完成任务浏览...")
             time.sleep(13)
 
             # 完成任务
@@ -257,14 +255,14 @@ class RNL:
                 if not user_task_id:
                     return False, 0.0
             
-            logger.log("等待2秒...")
+            # logger.log("等待2秒...")
             time.sleep(2)
             
             # 领取奖励
             if not self.receive_award(user_task_id=user_task_id):
                 return False, 0.0
 
-            logger.log("等待2秒...")
+            # logger.log("等待2秒...")
             time.sleep(2)
 
         # 获取今日领取记录用于汇总
@@ -592,7 +590,6 @@ if __name__ == "__main__":
     update_execution_count(run_count)
     
     logger.log(f"脚本已执行 {run_count} 次", level='info')
-    logger.log(">>>>>>>>>> 脚本开始执行 <<<<<<<<<<")
 
     cookie_list = []
     for i, account in enumerate(accounts):
@@ -649,7 +646,7 @@ if __name__ == "__main__":
                 'success': False,
                 'days': 0.0
             })
-        logger.log(f"--------- 第{index+1}个账号执行结束 ---------")
+        # logger.log(f"--------- 第{index+1}个账号执行结束 ---------")
 
     # 显示汇总表格
     print_summary_table(account_results)
