@@ -376,7 +376,15 @@ def random_delay(max_delay_seconds=600):
     while time.time() - start_time < delay_seconds:
         time.sleep(min(10, delay_seconds - (time.time() - start_time)))  # 每次最多休眠10秒
 
-def get_xiaomi_cookies(pass_token, user_id):
+def get_xiaomi_cookies(i, pass_token, user_id):
+    """获取小米账号Cookies
+    Args:
+        i (int): 账号索引
+        pass_token (str): 密码令牌
+        user_id (str): 用户ID
+    Returns:
+        tuple: (成功标志, Cookies)
+    """
     session = requests.Session()
     login_url = 'https://account.xiaomi.com/pass/serviceLogin?callback=https%3A%2F%2Fapi.jr.airstarfinance.net%2Fsts%3Fsign%3D1dbHuyAmee0NAZ2xsRw5vhdVQQ8%253D%26followup%3Dhttps%253A%252F%252Fm.jr.airstarfinance.net%252Fmp%252Fapi%252Flogin%253Ffrom%253Dmipay_indexicon_TVcard%2526deepLinkEnable%253Dfalse%2526requestUrl%253Dhttps%25253A%25252F%25252Fm.jr.airstarfinance.net%25252Fmp%25252Factivity%25252FvideoActivity%25253Ffrom%25253Dmipay_indexicon_TVcard%252526_noDarkMode%25253Dtrue%252526_transparentNaviBar%25253Dtrue%252526cUserId%25253Dusyxgr5xjumiQLUoAKTOgvi858Q%252526_statusBarHeight%25253D137&sid=jrairstar&_group=DEFAULT&_snsNone=true&_loginType=ticket'
     
@@ -384,13 +392,13 @@ def get_xiaomi_cookies(pass_token, user_id):
     user_agents = [
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0',
+        # 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0',
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0'
     ]
     
     # 为每个账号随机选择User-Agent
-    user_agent = random.choice(user_agents)
+    user_agent = user_agents[i]
     
     # 完整的浏览器Headers
     headers = {
@@ -619,7 +627,7 @@ if __name__ == "__main__":
             while time.time() - start_time < delay:
                 time.sleep(min(5, delay - (time.time() - start_time)))
         
-        new_cookie = get_xiaomi_cookies(account['passToken'], account['userId'])
+        new_cookie = get_xiaomi_cookies(i, account['passToken'], account['userId'])
         if new_cookie:
             cookie_list.append(new_cookie)
         else:
