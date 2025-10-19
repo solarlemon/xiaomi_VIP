@@ -362,9 +362,19 @@ def random_delay(max_delay_seconds=600):
     Args:
         max_delay_seconds (int): 最大延迟秒数，默认600秒（10分钟）
     """
-    delay_seconds = random.randint(0, max_delay_seconds)
+    # 增加更多随机性，使用浮点数延迟
+    delay_seconds = random.uniform(0, max_delay_seconds)
     
-    time.sleep(delay_seconds)
+    # 分段随机延迟，避免总是延迟很长时间
+    if delay_seconds > 60:  # 如果超过1分钟
+        logger.log(f"⏳ 随机延迟 {delay_seconds:.1f} 秒 ({delay_seconds/60:.1f} 分钟)")
+    else:
+        logger.log(f"⏳ 随机延迟 {delay_seconds:.1f} 秒")
+    
+    # 使用更小的间隔检查中断，提高响应性
+    start_time = time.time()
+    while time.time() - start_time < delay_seconds:
+        time.sleep(min(10, delay_seconds - (time.time() - start_time)))  # 每次最多休眠10秒
 
 def get_xiaomi_cookies(pass_token, user_id):
     session = requests.Session()
@@ -602,8 +612,12 @@ if __name__ == "__main__":
         
         # 在账号间添加延迟，避免并发请求
         if i > 0:  # 第一个账号不需要延迟
-            delay = random.uniform(3, 8)  # 3-8秒随机延迟
-            time.sleep(delay)
+            delay = random.uniform(5, 15)  # 5-15秒随机延迟，增加随机性
+            # logger.log(f"⏳ 账号间随机延迟 {delay:.1f} 秒")
+            # 分段延迟以提高响应性
+            start_time = time.time()
+            while time.time() - start_time < delay:
+                time.sleep(min(5, delay - (time.time() - start_time)))
         
         new_cookie = get_xiaomi_cookies(account['passToken'], account['userId'])
         if new_cookie:
