@@ -403,7 +403,7 @@ def get_xiaomi_cookies(i, pass_token, user_id):
     ]
 
     # 为每个账号选择对应User-Agent
-    user_agent = user_agents[i]
+    user_agent = user_agents[i%len(user_agents)]
 
     # 完整的浏览器Headers
     headers = {
